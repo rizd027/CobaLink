@@ -1,0 +1,105 @@
+-- 1. AKTIFKAN EXTENSION UUID (Jika belum)
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- 2. HAPUS TABEL LAMA (Urutan penting: CASCADE untuk menghapus ketergantungan seperti product_fields)
+DROP TABLE IF EXISTS orders CASCADE;
+DROP TABLE IF EXISTS categories CASCADE;
+DROP TABLE IF EXISTS product_fields CASCADE;
+
+-- 3. BUAT TABEL CATEGORIES (Sesuai kolom di UI)
+CREATE TABLE categories (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  name TEXT NOT NULL,
+  type TEXT DEFAULT 'FASHION', -- Contoh: FASHION, ELECTRONIC, etc.
+  status TEXT DEFAULT 'TO DO', -- Contoh: TO DO, IN PROGRESS, COMPLETE, etc.
+  icon TEXT DEFAULT 'Package', -- Nama icon preset atau URL icon custom
+  "pricePerPc" NUMERIC DEFAULT 0,
+  "createdAt" TIMESTAMPTZ DEFAULT now(),
+  "updatedAt" TIMESTAMPTZ DEFAULT now(),
+  "userId" UUID REFERENCES auth.users(id) ON DELETE CASCADE DEFAULT auth.uid()
+);
+
+-- 4. BUAT TABEL ORDERS
+CREATE TABLE orders (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  name TEXT NOT NULL,
+  phone TEXT,
+  status TEXT DEFAULT 'Belum Lunas',
+  data JSONB DEFAULT '{}',
+  "paymentProofUrl" TEXT,
+  "createdAt" TIMESTAMPTZ DEFAULT now(),
+  "updatedAt" TIMESTAMPTZ DEFAULT now(),
+  "userId" UUID REFERENCES auth.users(id) ON DELETE CASCADE DEFAULT auth.uid(),
+  "categoryId" UUID REFERENCES categories(id) ON DELETE CASCADE
+);
+
+-- 5. AKTIFKAN RLS (Row Level Security)
+ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+
+-- 6. BUAT POLICY KEAMANAN (Hanya pemilik yang bisa akses datanya sendiri)
+DROP POLICY IF EXISTS "Users can manage their own categories" ON categories;
+CREATE POLICY "Users can manage their own categories" ON categories 
+FOR ALL USING (auth.uid() = "userId");
+
+DROP POLICY IF EXISTS "Users can manage their own orders" ON orders;
+CREATE POLICY "Users can manage their own orders" ON orders 
+FOR ALL USING (auth.uid() = "userId");
+
+-- 7. AKTIFKAN REALTIME
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND tablename = 'categories'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE categories;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND tablename = 'orders'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE orders;
+  END IF;
+END $$;
+
+-- 8. BUAT TABEL PRODUCT_FIELDS (Ketergantungan yang tadi terhapus CASCADE)
+CREATE TABLE product_fields (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  "productId" UUID REFERENCES categories(id) ON DELETE CASCADE,
+  label TEXT NOT NULL,
+  type TEXT DEFAULT 'text',
+  options TEXT,
+  "isRequired" BOOLEAN DEFAULT false,
+  "sortOrder" INTEGER DEFAULT 0,
+  "createdAt" TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE product_fields ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can manage fields of their categories" ON product_fields;
+CREATE POLICY "Users can manage fields of their categories" ON product_fields
+FOR ALL USING (
+  EXISTS (
+    SELECT 1 FROM categories 
+    WHERE categories.id = product_fields."productId" 
+    AND categories."userId" = auth.uid()
+  )
+);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND tablename = 'product_fields'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE product_fields;
+  END IF;
+END $$;
