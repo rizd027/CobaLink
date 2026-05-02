@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">List To Order</string>
-    <string name="title_activity_main">List To Order</string>
-    <string name="package_name">com.rizd027.listtoorder</string>
-    <string name="custom_url_scheme">com.rizd027.listtoorder</string>
-</resources>
