@@ -54,11 +54,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
         return;
       }
-
-      if (event === "TOKEN_REFRESHED" && session) {
-        syncAuthCookie(session.access_token);
-      }
-
       setLoading(false);
     });
 

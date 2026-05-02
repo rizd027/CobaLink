@@ -20,6 +20,12 @@ const nextConfig: NextConfig = {
 
   // Acknowledge Turbopack to silence the warning/error in Next.js 16
   turbopack: {},
+
+  // Static export for Capacitor
+  output: 'export',
+  images: {
+    unoptimized: true,
+  },
 };
 
 export default nextConfig;
