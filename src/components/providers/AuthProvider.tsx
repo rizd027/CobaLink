@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import Cookies from "js-cookie";
 import { supabase } from "@/services/supabase";
 import { useAuthStore } from "@/store/authStore";
-import { AUTH_PROTECTED_PREFIX } from "@/lib/authPaths";
+import { AUTH_LANDING_PATH, AUTH_PROTECTED_PREFIX } from "@/lib/authPaths";
 
 const AUTH_COOKIE = "sb-access-token";
 
@@ -49,13 +49,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         syncAuthCookie(null);
         // Only redirect to login if we are actually on a protected page
         if (typeof window !== "undefined" && window.location.pathname.startsWith(AUTH_PROTECTED_PREFIX)) {
-          window.location.assign("/login");
+          window.location.replace("/login");
         }
         setLoading(false);
         return;
       }
+
       setLoading(false);
     });
+
+    // Handle initial redirect for static export
+    const checkRedirect = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const pathname = window.location.pathname;
+
+      if (pathname.startsWith(AUTH_PROTECTED_PREFIX)) {
+        if (!session) {
+          window.location.replace("/login");
+        }
+      } else if (session && (pathname === "/login" || pathname === "/register")) {
+        window.location.replace(AUTH_LANDING_PATH);
+      }
+    };
+
+    checkRedirect();
 
     return () => subscription.unsubscribe();
     // eslint-disable-next-line react-hooks/exhaustive-deps
