@@ -17,6 +17,7 @@ import {
 import { useAuthStore } from "@/store/authStore";
 import { resendVerificationEmail, logoutUser } from "@/services/auth";
 import { supabase } from "@/services/supabase";
+import { AUTH_LANDING_PATH } from "@/lib/authPaths";
 
 export default function VerifyEmailPage() {
   const router = useRouter();
@@ -26,7 +27,7 @@ export default function VerifyEmailPage() {
 
   useEffect(() => {
     if (user?.email_confirmed_at) {
-      router.push("/dashboard");
+      router.push(AUTH_LANDING_PATH);
     }
   }, [user, router]);
 
@@ -51,7 +52,7 @@ export default function VerifyEmailPage() {
       
       if (updatedUser?.email_confirmed_at) {
         toast.success("Email verified!");
-        router.push("/dashboard");
+        router.push(AUTH_LANDING_PATH);
       } else {
         toast.info("Email not verified yet. Please check your inbox.");
       }

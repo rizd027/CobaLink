@@ -73,7 +73,7 @@ export function Analytics({ orders, className }: AnalyticsProps) {
               return (
                 <div
                   key={size}
-                  className={cn("h-full transition-all duration-500", palette[index % palette.length])}
+                  className={cn("h-full", palette[index % palette.length])}
                   style={{ width: `${percentage}%` }}
                   title={`${size}: ${count} units`}
                 />

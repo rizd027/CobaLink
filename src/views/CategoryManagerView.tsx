@@ -25,10 +25,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useOrderStore } from "@/store/useOrderStore";
+import { useConfirmStore } from "@/store/useConfirmStore";
 import { addCategory, deleteCategory } from "@/services/categories";
 import { cn } from "@/lib/utils";
-import { useGSAP } from "@gsap/react";
-import gsap from "gsap";
 import { format } from "date-fns";
 import {
   Dialog,
@@ -70,18 +69,6 @@ export function CategoryManagerView({ onBack }: CategoryManagerViewProps) {
     c.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  useGSAP(() => {
-    if (containerRef.current) {
-      const items = containerRef.current.querySelectorAll(".category-card");
-      if (items.length > 0) {
-        gsap.fromTo(items, 
-          { opacity: 0, y: 20 },
-          { opacity: 1, y: 0, duration: 0.5, stagger: 0.05, ease: "power3.out" }
-        );
-      }
-    }
-  }, { dependencies: [filteredCategories.length], scope: containerRef });
-
   const handleAdd = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!formData.name.trim()) return;
@@ -104,15 +91,21 @@ export function CategoryManagerView({ onBack }: CategoryManagerViewProps) {
     }
   };
 
+  const confirmDialog = useConfirmStore((state) => state.confirm);
+
   const handleDelete = async (id: string) => {
-    if (confirm("Are you sure? This will not delete orders, but they will become uncategorized.")) {
-      try {
-        await deleteCategory(id);
-        toast.success("Category removed");
-      } catch (error) {
-        toast.error("Failed to remove category");
+    confirmDialog({
+      title: "Hapus Kategori?",
+      message: "Ini tidak akan menghapus pesanan, tetapi pesanan tersebut akan menjadi tidak berkategori.",
+      onConfirm: async () => {
+        try {
+          await deleteCategory(id);
+          toast.success("Category removed");
+        } catch (error) {
+          toast.error("Failed to remove category");
+        }
       }
-    }
+    });
   };
 
   return (
@@ -127,7 +120,7 @@ export function CategoryManagerView({ onBack }: CategoryManagerViewProps) {
             variant="ghost" 
             size="icon" 
             onClick={onBack}
-            className="w-12 h-12 rounded-2xl hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-all active:scale-90"
+            className="w-12 h-12 rounded-2xl hover:bg-muted/50 text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft size={24} />
           </Button>
@@ -158,10 +151,10 @@ export function CategoryManagerView({ onBack }: CategoryManagerViewProps) {
                  <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                     <DialogTrigger 
                       className={cn(
-                        "h-14 rounded-2xl bg-primary text-white font-bold uppercase text-[12px] tracking-[0.2em] px-10 shadow-xl shadow-primary/20 hover:shadow-primary/40 transition-all group inline-flex items-center justify-center cursor-pointer"
+                        "h-14 rounded-2xl bg-primary text-white font-bold uppercase text-[12px] tracking-[0.2em] px-10 shadow-xl shadow-primary/20 hover:shadow-primary/40 group inline-flex items-center justify-center cursor-pointer"
                       )}
                     >
-                      <Plus className="mr-3 group-hover:rotate-90 transition-transform duration-300" size={20} />
+                      <Plus className="mr-3" size={20} />
                       Create Category
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-[500px] rounded-3xl border-2 border-primary/10 shadow-2xl p-0 overflow-hidden">
@@ -209,7 +202,7 @@ export function CategoryManagerView({ onBack }: CategoryManagerViewProps) {
                                 placeholder="Enter manual type..."
                                 value={otherType}
                                 onChange={(e) => setOtherType(e.target.value)}
-                                className="h-12 bg-primary/5 border-2 border-primary/10 rounded-xl font-bold text-xs px-4 animate-in slide-in-from-top-2"
+                                className="h-12 bg-primary/5 border-2 border-primary/10 rounded-xl font-bold text-xs px-4"
                               />
                             )}
                           </div>
@@ -236,7 +229,7 @@ export function CategoryManagerView({ onBack }: CategoryManagerViewProps) {
                                 placeholder="Enter manual status..."
                                 value={otherStatus}
                                 onChange={(e) => setOtherStatus(e.target.value)}
-                                className="h-12 bg-primary/5 border-2 border-primary/10 rounded-xl font-bold text-xs px-4 animate-in slide-in-from-top-2"
+                                className="h-12 bg-primary/5 border-2 border-primary/10 rounded-xl font-bold text-xs px-4"
                               />
                             )}
                           </div>
@@ -271,7 +264,7 @@ export function CategoryManagerView({ onBack }: CategoryManagerViewProps) {
                     placeholder="Search categories..." 
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-12 h-12 rounded-lg bg-gray-100/50 border-none font-bold text-sm focus-visible:ring-primary/20 transition-all"
+                    className="pl-12 h-12 rounded-lg bg-gray-100/50 border-none font-bold text-sm focus-visible:ring-primary/20"
                   />
                 </div>
              </div>
@@ -292,7 +285,7 @@ export function CategoryManagerView({ onBack }: CategoryManagerViewProps) {
               </TableHeader>
               <TableBody>
                 {filteredCategories.map((cat) => (
-                  <TableRow key={cat.id} className="group border-b border-border/40 hover:bg-primary/[0.01] transition-colors">
+                  <TableRow key={cat.id} className="group border-b border-border/40 hover:bg-primary/[0.01]">
                     <TableCell className="px-6 py-4 font-bold text-xs text-muted-foreground/60 uppercase">
                       {cat.id.substring(0, 6)}
                     </TableCell>
@@ -319,7 +312,7 @@ export function CategoryManagerView({ onBack }: CategoryManagerViewProps) {
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-8 w-8 rounded-lg text-muted-foreground/60 hover:text-primary hover:bg-primary/5 transition-all"
+                          className="h-8 w-8 rounded-lg text-muted-foreground/60 hover:text-primary hover:bg-primary/5"
                           onClick={(e) => {
                             e.stopPropagation();
                             toast("Edit feature coming soon");
@@ -331,7 +324,7 @@ export function CategoryManagerView({ onBack }: CategoryManagerViewProps) {
                           variant="ghost" 
                           size="icon" 
                           onClick={() => handleDelete(cat.id)}
-                          className="h-8 w-8 rounded-lg text-muted-foreground/60 hover:text-red-500 hover:bg-red-50 transition-all"
+                          className="h-8 w-8 rounded-lg text-muted-foreground/60 hover:text-red-500 hover:bg-red-50"
                         >
                           <Trash2 size={16} />
                         </Button>

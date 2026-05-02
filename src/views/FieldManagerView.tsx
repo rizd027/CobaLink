@@ -38,8 +38,6 @@ import { toast } from "sonner";
 import { useOrderStore } from "@/store/useOrderStore";
 import { ProductField, addField, deleteField, updateField } from "@/services/fields";
 import { cn } from "@/lib/utils";
-import { useGSAP } from "@gsap/react";
-import gsap from "gsap";
 
 interface FieldManagerViewProps {
   onBack: () => void;
@@ -120,30 +118,30 @@ function FieldCard({
     <div
       onClick={() => !isActive && onActivate()}
       className={cn(
-        "relative rounded-2xl border-2 bg-card transition-all duration-300 cursor-pointer group",
+        "relative rounded-xl sm:rounded-2xl border-2 bg-card/60 backdrop-blur-sm cursor-pointer group transition-all duration-200",
         isActive
-          ? "border-primary shadow-xl shadow-primary/10 cursor-default"
-          : "border-border/50 hover:border-border shadow-sm"
+          ? "border-primary/60 bg-card shadow-2xl shadow-primary/10 cursor-default scale-[1.01]"
+          : "border-border/40 hover:border-border/80 shadow-sm"
       )}
     >
       {/* Left accent bar */}
       <div
         className={cn(
-          "absolute left-0 top-4 bottom-4 w-1 rounded-full transition-all duration-300",
+          "absolute left-0 top-3 sm:top-4 bottom-3 sm:bottom-4 w-1 rounded-full",
           isActive ? "bg-primary" : "bg-transparent"
         )}
       />
 
       {/* Drag handle */}
-      <div className="absolute top-3 left-1/2 -translate-x-1/2 flex gap-0.5 opacity-20 group-hover:opacity-40 transition-opacity cursor-grab active:cursor-grabbing">
+      <div className="absolute top-2 sm:top-3 left-1/2 -translate-x-1/2 flex gap-0.5 opacity-20 group-hover:opacity-40 cursor-grab active:cursor-grabbing">
         {[...Array(6)].map((_, i) => (
           <div key={i} className="w-0.5 h-0.5 rounded-full bg-muted-foreground" />
         ))}
       </div>
 
-      <div className="px-8 pt-8 pb-5">
+      <div className="px-4 sm:px-8 pt-5 sm:pt-8 pb-4 sm:pb-5">
         {/* Question + Type row */}
-        <div className="flex items-start gap-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-start gap-3 sm:gap-4">
           <div className="flex-1">
             {isActive ? (
               <Input
@@ -151,15 +149,15 @@ function FieldCard({
                 value={field.label}
                 onChange={(e) => onChange({ label: e.target.value })}
                 placeholder="Judul Kolom"
-                className="h-12 text-base font-semibold border-0 border-b-2 border-border rounded-none px-0 bg-transparent focus-visible:ring-0 focus-visible:border-primary transition-colors placeholder:text-muted-foreground/40"
+                className="h-10 sm:h-12 text-sm sm:text-base font-semibold border-0 border-b border-border rounded-none px-0 bg-transparent focus-visible:ring-0 focus-visible:border-primary placeholder:text-muted-foreground/40"
               />
             ) : (
-              <div className="flex items-center gap-2 h-12 border-b border-border/30">
-                <span className={cn("text-base font-semibold", !field.label && "text-muted-foreground/40")}>
+              <div className="flex items-center gap-2 h-10 sm:h-12 border-b border-border/10 sm:border-border/30">
+                <span className={cn("text-sm sm:text-base font-semibold", !field.label && "text-muted-foreground/40")}>
                   {field.label || "Pertanyaan Tanpa Judul"}
                 </span>
                 {field.isRequired && (
-                  <span className="text-rose-500 font-black text-lg leading-none">*</span>
+                  <span className="text-rose-500 font-black text-base sm:text-lg leading-none">*</span>
                 )}
               </div>
             )}
@@ -174,14 +172,14 @@ function FieldCard({
             >
               <SelectTrigger
                 className={cn(
-                  "h-12 w-[220px] rounded-xl border font-semibold text-sm gap-3 px-4 transition-all",
+                  "h-10 sm:h-12 w-full sm:w-[220px] rounded-lg sm:rounded-xl border font-bold text-xs sm:text-sm gap-2 sm:gap-3 px-3 sm:px-4 transition-colors",
                   isActive
-                    ? "border-border bg-background shadow-sm hover:border-primary/40"
-                    : "border-transparent bg-transparent text-muted-foreground"
+                    ? "border-border/60 bg-muted/30 shadow-sm hover:border-primary/40 text-foreground"
+                    : "border-transparent bg-transparent text-muted-foreground p-0 h-auto"
                 )}
               >
-                <span className="flex items-center gap-2.5">
-                  <span className="text-primary">{selectedType?.icon}</span>
+                <span className="flex items-center gap-2 sm:gap-2.5">
+                  <span className="text-primary scale-90 sm:scale-100">{selectedType?.icon}</span>
                   <SelectValue />
                 </span>
               </SelectTrigger>
@@ -193,10 +191,10 @@ function FieldCard({
                     <SelectItem
                       key={t.value!}
                       value={t.value!}
-                      className="rounded-lg py-2.5 px-4 font-semibold text-sm cursor-pointer"
+                      className="rounded-lg py-2 sm:py-2.5 px-3 sm:px-4 font-semibold text-xs sm:text-sm cursor-pointer"
                     >
-                      <span className="flex items-center gap-3">
-                        <span className="text-muted-foreground">{t.icon}</span>
+                      <span className="flex items-center gap-2.5 sm:gap-3">
+                        <span className="text-muted-foreground scale-90 sm:scale-100">{t.icon}</span>
                         <span>
                           <span className="block">{t.label}</span>
                         </span>
@@ -211,12 +209,12 @@ function FieldCard({
 
         {/* Options for radio/select type (active edit) */}
         {(field.type === "radio" || field.type === "select") && isActive && (
-          <div className="mt-6 space-y-3">
+          <div className="mt-4 sm:mt-6 space-y-2 sm:space-y-3">
             {(field.options ? field.options.split(",") : [""]).map((opt, idx, arr) => (
-              <div key={idx} className="flex items-center gap-3 group/opt">
+              <div key={idx} className="flex items-center gap-2.5 sm:gap-3 group/opt">
                 {field.type === "radio"
-                  ? <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/40 shrink-0" />
-                  : <ChevronDown size={14} className="text-muted-foreground/40 shrink-0" />}
+                  ? <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full border-2 border-primary/30 shrink-0" />
+                  : <ChevronDown size={12} className="text-primary/40 shrink-0 sm:w-[14px] sm:h-[14px]" />}
                 <input
                   value={opt}
                   onChange={(e) => {
@@ -225,7 +223,7 @@ function FieldCard({
                     onChange({ options: newArr.join(",") });
                   }}
                   placeholder={`Opsi ${idx + 1}`}
-                  className="flex-1 h-9 border-0 border-b border-dashed border-border bg-transparent text-sm font-medium outline-none focus:border-primary transition-colors placeholder:text-muted-foreground/30"
+                  className="flex-1 h-8 sm:h-9 border-0 border-b border-dashed border-border bg-transparent text-xs sm:text-sm font-semibold text-foreground outline-none focus:border-primary placeholder:text-muted-foreground/30"
                 />
                 {arr.length > 1 && (
                   <button
@@ -233,7 +231,7 @@ function FieldCard({
                       const newArr = arr.filter((_, i) => i !== idx);
                       onChange({ options: newArr.join(",") });
                     }}
-                    className="opacity-0 group-hover/opt:opacity-100 text-muted-foreground hover:text-destructive transition-all"
+                    className="opacity-0 group-hover/opt:opacity-100 text-muted-foreground hover:text-destructive"
                   >
                     <Trash2 size={14} />
                   </button>
@@ -246,10 +244,10 @@ function FieldCard({
                 arr.push("");
                 onChange({ options: arr.join(",") });
               }}
-              className="flex items-center gap-3 text-sm text-primary/70 hover:text-primary font-semibold transition-colors mt-1"
+              className="flex items-center gap-2.5 sm:gap-3 text-xs sm:text-sm text-primary/70 hover:text-primary font-semibold mt-1"
             >
-              <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/20 flex items-center justify-center">
-                <Plus size={9} />
+              <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full border-2 border-muted-foreground/20 flex items-center justify-center">
+                <Plus size={8} />
               </div>
               Tambah opsi
             </button>
@@ -258,13 +256,13 @@ function FieldCard({
 
         {/* Scale config (active) */}
         {field.type === "scale" && isActive && (
-          <div className="mt-5 space-y-2">
-            <p className="text-xs text-muted-foreground font-semibold">Masukkan batas skala, contoh: <span className="text-primary">1,5</span> atau <span className="text-primary">0,10</span></p>
+          <div className="mt-4 sm:mt-5 space-y-2">
+            <p className="text-[10px] sm:text-xs text-muted-foreground font-semibold">Masukkan batas skala, contoh: <span className="text-primary">1,5</span></p>
             <input
               value={field.options}
               onChange={(e) => onChange({ options: e.target.value })}
-              placeholder="min,max  (contoh: 1,5)"
-              className="w-44 h-9 rounded-lg border border-border bg-muted/10 px-3 text-sm font-medium outline-none focus:border-primary transition-colors"
+              placeholder="min,max"
+              className="w-full sm:w-44 h-8 sm:h-9 rounded-lg border border-border bg-muted/10 px-3 text-xs sm:text-sm font-medium outline-none focus:border-primary"
             />
           </div>
         )}
@@ -273,11 +271,11 @@ function FieldCard({
 
         {/* Radio preview */}
         {field.type === "radio" && !isActive && (
-          <div className="mt-4 space-y-2">
+          <div className="mt-3 sm:mt-4 space-y-1.5 sm:space-y-2">
             {(field.options ? field.options.split(",").filter(Boolean) : ["Opsi 1"]).map((opt) => (
-              <div key={opt} className="flex items-center gap-2.5">
-                <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/30 shrink-0" />
-                <span className="text-sm text-muted-foreground/70 font-medium">{opt.trim()}</span>
+              <div key={opt} className="flex items-center gap-2 sm:gap-2.5">
+                <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full border-2 border-primary/20 shrink-0" />
+                <span className="text-xs sm:text-sm text-foreground/80 font-semibold">{opt.trim()}</span>
               </div>
             ))}
           </div>
@@ -285,11 +283,11 @@ function FieldCard({
 
         {/* Select/Dropdown preview */}
         {field.type === "select" && !isActive && field.options && (
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-2.5 sm:mt-3 flex flex-wrap gap-1.5 sm:gap-2">
             {field.options.split(",").filter(Boolean).map((opt) => (
               <span
                 key={opt}
-                className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-muted/60 text-muted-foreground border border-border/40"
+                className="text-[10px] sm:text-xs font-semibold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg bg-muted/60 text-muted-foreground border border-border/40"
               >
                 {opt.trim()}
               </span>
@@ -299,37 +297,36 @@ function FieldCard({
 
         {/* Checkbox/Toggle preview */}
         {field.type === "checkbox" && (
-          <div className="mt-4 flex items-center gap-3">
-            <div className="w-9 h-5 rounded-full bg-muted-foreground/20 relative flex items-center">
-              <div className="w-3 h-3 rounded-full bg-white shadow-sm absolute left-1" />
+          <div className="mt-3 sm:mt-4 flex items-center gap-2.5 sm:gap-3">
+            <div className="w-8 h-4.5 sm:w-9 sm:h-5 rounded-full bg-primary/20 relative flex items-center">
+              <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-white shadow-sm absolute left-1" />
             </div>
-            <span className="text-sm text-muted-foreground/60 font-medium">{field.label || "Toggle"}</span>
+            <span className="text-xs sm:text-sm text-foreground/70 font-semibold">{field.label || "Toggle"}</span>
           </div>
         )}
 
         {/* Image/File preview */}
         {field.type === "image" && (
-          <div className="mt-4 flex items-center gap-3 px-4 py-3 rounded-xl border border-dashed border-border/60 bg-muted/5 w-fit">
-            <ImageIcon size={18} className="text-muted-foreground/40" />
-            <span className="text-xs font-semibold text-muted-foreground/40 uppercase tracking-wider">Upload File / Gambar</span>
+          <div className="mt-3 sm:mt-4 flex items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2 sm:py-3 rounded-xl border border-dashed border-border bg-muted/20 w-fit">
+            <ImageIcon className="w-4 h-4 sm:w-[18px] sm:h-[18px] text-primary/40" />
+            <span className="text-[10px] sm:text-xs font-bold text-foreground/50 uppercase tracking-wider">Upload File / Gambar</span>
           </div>
         )}
 
         {/* Scale preview */}
         {field.type === "scale" && (
-          <div className="mt-4">
+          <div className="mt-3 sm:mt-4">
             {(() => {
               const parts = field.options ? field.options.split(",") : ["1", "5"];
               const min = parseInt(parts[0]) || 1;
               const max = parseInt(parts[1]) || 5;
-              const steps = Array.from({ length: max - min + 1 }, (_, i) => min + i);
+              const steps = Array.from({ length: Math.min(max - min + 1, 10) }, (_, i) => min + i);
               return (
-                <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
                   {steps.map((n) => (
-                    <div key={n} className="flex flex-col items-center gap-1">
-                      <div className="w-8 h-8 rounded-full border-2 border-border/50 flex items-center justify-center text-xs font-bold text-muted-foreground/50">{n}</div>
-                    </div>
+                    <div key={n} className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-border flex items-center justify-center text-[10px] sm:text-xs font-black text-foreground/40">{n}</div>
                   ))}
+                  {max - min + 1 > 10 && <span className="text-[10px] text-muted-foreground/40 font-bold">...</span>}
                 </div>
               );
             })()}
@@ -338,86 +335,86 @@ function FieldCard({
 
         {/* Rating preview */}
         {field.type === "rating" && (
-          <div className="mt-4 flex items-center gap-1.5">
+          <div className="mt-3 sm:mt-4 flex items-center gap-1 sm:gap-1.5">
             {[1,2,3,4,5].map((s) => (
-              <Star key={s} size={20} className="text-muted-foreground/20 fill-muted-foreground/10" />
+              <Star key={s} className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground/20 fill-muted-foreground/10" />
             ))}
           </div>
         )}
 
         {/* Text/Textarea/Number preview */}
         {(field.type === "text" || field.type === "number" || field.type === "currency") && (
-          <div className="mt-4 border-b border-dashed border-border/40 pb-1">
-            <span className="text-sm text-muted-foreground/30 font-medium">
+          <div className="mt-3 sm:mt-4 border-b border-dashed border-border pb-1">
+            <span className="text-xs sm:text-sm text-foreground/40 font-bold">
               {field.type === "currency" ? "Nominal uang..." : field.type === "number" ? "Jawaban numerik..." : "Jawaban singkat..."}
             </span>
           </div>
         )}
         {field.type === "textarea" && (
-          <div className="mt-4 border-b border-dashed border-border/40 pb-6">
-            <span className="text-sm text-muted-foreground/30 font-medium">Paragraf teks panjang...</span>
+          <div className="mt-3 sm:mt-4 border-b border-dashed border-border/40 pb-4 sm:pb-6">
+            <span className="text-xs sm:text-sm text-muted-foreground/30 font-medium">Paragraf teks panjang...</span>
           </div>
         )}
 
         {/* Date preview */}
         {field.type === "date" && (
-          <div className="mt-4 flex items-center gap-2 border-b border-dashed border-border/40 pb-1.5 w-fit">
-            <Calendar size={16} className="text-muted-foreground/30" />
-            <span className="text-sm text-muted-foreground/30 font-medium">dd/mm/yyyy</span>
+          <div className="mt-3 sm:mt-4 flex items-center gap-2 border-b border-dashed border-border/40 pb-1 sm:pb-1.5 w-fit">
+            <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground/30" />
+            <span className="text-xs sm:text-sm text-muted-foreground/30 font-medium">dd/mm/yyyy</span>
           </div>
         )}
 
         {/* Time preview */}
         {field.type === "time" && (
-          <div className="mt-4 flex items-center gap-2 border-b border-dashed border-border/40 pb-1.5 w-fit">
-            <Clock size={16} className="text-muted-foreground/30" />
-            <span className="text-sm text-muted-foreground/30 font-medium">HH:mm</span>
+          <div className="mt-3 sm:mt-4 flex items-center gap-2 border-b border-dashed border-border/40 pb-1 sm:pb-1.5 w-fit">
+            <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground/30" />
+            <span className="text-xs sm:text-sm text-muted-foreground/30 font-medium">HH:mm</span>
           </div>
         )}
       </div>
 
       {/* Bottom action bar — only visible when active */}
       {isActive && (
-        <div className="px-8 py-4 border-t border-border/40 flex items-center justify-end gap-1">
+        <div className="px-4 sm:px-8 py-3 sm:py-4 border-t border-border/40 flex items-center justify-end gap-0.5 sm:gap-1">
           <button
             onClick={onDuplicate}
-            className="p-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all"
+            className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/60"
             title="Duplikat"
           >
-            <Copy size={18} />
+            <Copy className="w-4 h-4 sm:w-[18px] sm:h-[18px]" />
           </button>
           <button
             onClick={onDelete}
-            className="p-2.5 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-all"
+            className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/5"
             title="Hapus"
           >
-            <Trash2 size={18} />
+            <Trash2 className="w-4 h-4 sm:w-[18px] sm:h-[18px]" />
           </button>
-          <div className="w-px h-6 bg-border/60 mx-2" />
+          <div className="w-px h-5 sm:h-6 bg-border/60 mx-1.5 sm:mx-2" />
           {/* Required toggle */}
-          <span className="text-sm font-semibold text-muted-foreground mr-2">Wajib diisi</span>
+          <span className="text-xs sm:text-sm font-semibold text-muted-foreground mr-1.5 sm:mr-2">Wajib</span>
           <button
             onClick={() => onChange({ isRequired: !field.isRequired })}
             className={cn(
-              "w-11 h-6 rounded-full relative flex items-center transition-all duration-300",
+              "w-9 h-5 sm:w-11 sm:h-6 rounded-full relative flex items-center",
               field.isRequired ? "bg-primary shadow-md shadow-primary/30" : "bg-muted-foreground/20"
             )}
           >
             <div
               className={cn(
-                "w-4 h-4 rounded-full bg-white shadow-md absolute transition-all duration-300",
-                field.isRequired ? "left-6" : "left-1"
+                "w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-white shadow-md absolute",
+                field.isRequired ? "left-5 sm:left-6" : "left-1"
               )}
             />
           </button>
-          <div className="w-px h-6 bg-border/60 mx-2" />
+          <div className="w-px h-5 sm:h-6 bg-border/60 mx-1.5 sm:mx-2" />
           <Button
             onClick={onSave}
             disabled={isSaving || !field.label.trim()}
             size="sm"
-            className="rounded-xl h-9 px-5 font-bold text-xs uppercase tracking-wider bg-primary/90 hover:bg-primary shadow-lg shadow-primary/20 transition-all active:scale-95"
+            className="rounded-lg sm:rounded-xl h-8 sm:h-9 px-4 sm:px-5 font-bold text-[10px] sm:text-xs uppercase tracking-wider bg-primary/90 hover:bg-primary shadow-lg shadow-primary/20 active:scale-95"
           >
-            {isSaving ? "Menyimpan..." : field.id ? "Simpan" : "Buat Kolom"}
+            {isSaving ? "Wait..." : field.id ? "Simpan" : "Buat"}
           </Button>
         </div>
       )}
@@ -462,19 +459,6 @@ export function FieldManagerView({ onBack }: FieldManagerViewProps) {
       }));
     }
   };
-
-  useGSAP(() => {
-    if (containerRef.current) {
-      const items = containerRef.current.querySelectorAll(".field-card");
-      if (items.length > 0) {
-        gsap.fromTo(
-          items,
-          { opacity: 0, y: 20 },
-          { opacity: 1, y: 0, duration: 0.5, stagger: 0.06, ease: "power3.out" }
-        );
-      }
-    }
-  }, { dependencies: [productFields.length], scope: containerRef });
 
   const handleAddNew = () => {
     const newDraft: DraftField = {
@@ -578,32 +562,31 @@ export function FieldManagerView({ onBack }: FieldManagerViewProps) {
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/3 rounded-full blur-[150px] -mr-64 -mt-64 pointer-events-none" />
 
       {/* Header */}
-      <div className="px-6 sm:px-12 py-7 flex items-center justify-between z-10 relative shrink-0 border-b border-border/40 bg-background/80 backdrop-blur-xl">
-        <div className="flex items-center gap-5">
+      <div className="px-4 sm:px-12 py-3 sm:py-7 flex items-center justify-between z-10 relative shrink-0 border-b border-border/40 bg-background/80 backdrop-blur-xl">
+        <div className="flex items-center gap-3 sm:gap-5">
           <Button
             variant="ghost"
             size="icon"
             onClick={onBack}
-            className="w-11 h-11 rounded-2xl hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-all active:scale-90"
+            className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl hover:bg-muted/60 text-muted-foreground hover:text-foreground active:scale-90"
           >
-            <ArrowLeft size={22} />
+            <ArrowLeft className="w-4.5 h-4.5 sm:w-[22px] sm:h-[22px]" />
           </Button>
-          <div className="h-8 w-px bg-border" />
-          <div>
-            <h1 className="text-2xl font-black tracking-tight text-foreground flex items-center gap-2.5">
-              <Settings2 size={20} className="text-primary" />
-              Column Definition:{" "}
-              <span className="text-primary">{selectedCategory?.name}</span>
+          <div className="h-5 sm:h-8 w-px bg-border" />
+          <div className="flex flex-col">
+            <h1 className="text-base sm:text-2xl font-black tracking-tight text-foreground flex items-center gap-1.5 sm:gap-2.5 leading-none">
+              <Settings2 className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-primary" />
+              Column Definition
             </h1>
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5 opacity-50">
-              Buat dan atur kolom data seperti Google Forms
+            <p className="text-[8px] sm:text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em] sm:tracking-widest mt-0.5 opacity-40">
+              {selectedCategory?.name}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 bg-muted/20 px-3 py-1.5 rounded-full border border-border/30">
-            {productFields.length} kolom aktif
+          <div className="text-[8px] sm:text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 bg-muted/20 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-border/30">
+            {productFields.length} <span className="sm:inline hidden">kolom</span>
           </div>
         </div>
       </div>
@@ -642,10 +625,10 @@ export function FieldManagerView({ onBack }: FieldManagerViewProps) {
           {/* Add button */}
           <button
             onClick={handleAddNew}
-            className="w-full flex items-center justify-center gap-3 py-5 rounded-2xl border-2 border-dashed border-border/40 hover:border-primary/40 hover:bg-primary/3 text-muted-foreground hover:text-primary transition-all duration-300 group mt-2"
+            className="w-full flex items-center justify-center gap-3 py-5 rounded-2xl border-2 border-dashed border-border/40 hover:border-primary/40 hover:bg-primary/3 text-muted-foreground hover:text-primary group mt-2"
           >
-            <div className="w-8 h-8 rounded-full bg-muted/40 group-hover:bg-primary/10 flex items-center justify-center transition-all">
-              <Plus size={18} className="group-hover:scale-110 transition-transform" />
+            <div className="w-8 h-8 rounded-full bg-muted/40 group-hover:bg-primary/10 flex items-center justify-center">
+              <Plus size={18} className="group-hover:scale-110" />
             </div>
             <span className="text-sm font-bold uppercase tracking-wider">Tambah Kolom Baru</span>
           </button>

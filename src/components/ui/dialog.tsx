@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
+import { Slot } from "@radix-ui/react-slot"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -11,7 +12,50 @@ function Dialog({ ...props }: DialogPrimitive.Root.Props) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />
 }
 
-function DialogTrigger({ ...props }: DialogPrimitive.Trigger.Props) {
+function DialogTrigger({
+  asChild,
+  ...props
+}: DialogPrimitive.Trigger.Props & { asChild?: boolean }) {
+  if (asChild) {
+    return (
+      <DialogPrimitive.Trigger
+        data-slot="dialog-trigger"
+        render={(triggerProps, state) => {
+          const {
+            className: triggerClassName,
+            style: triggerStyle,
+            ...restTrigger
+          } = triggerProps
+          const {
+            className: propsClassName,
+            style: propsStyle,
+            ...restProps
+          } = props
+          const mergedStyle: React.CSSProperties = {
+            ...(triggerStyle ?? {}),
+            ...(typeof propsStyle === "function"
+              ? propsStyle(state) ?? {}
+              : propsStyle ?? {}),
+          }
+          return (
+            <Slot
+              {...restTrigger}
+              {...restProps}
+              className={cn(
+                triggerClassName,
+                typeof propsClassName === "function"
+                  ? propsClassName(state)
+                  : propsClassName,
+              )}
+              style={
+                Object.keys(mergedStyle).length > 0 ? mergedStyle : undefined
+              }
+            />
+          )
+        }}
+      />
+    )
+  }
   return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
 }
 

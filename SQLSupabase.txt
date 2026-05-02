@@ -1,13 +1,13 @@
--- 1. AKTIFKAN EXTENSION UUID (Jika belum)
+-- 1. AKTIFKAN EXTENSION UUID
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 2. HAPUS TABEL LAMA (Urutan penting: CASCADE untuk menghapus ketergantungan seperti product_fields)
-DROP TABLE IF EXISTS orders CASCADE;
-DROP TABLE IF EXISTS categories CASCADE;
-DROP TABLE IF EXISTS product_fields CASCADE;
+-- 2. KONFIGURASI TABEL (Aman: Tidak menghapus data lama)
+-- PENTING: Gunakan "IF NOT EXISTS" agar data user tetap tersimpan.
+-- Jika ingin menambah kolom baru ke tabel yang sudah ada, gunakan:
+-- ALTER TABLE nama_tabel ADD COLUMN IF NOT EXISTS nama_kolom TYPE;
 
--- 3. BUAT TABEL CATEGORIES (Sesuai kolom di UI)
-CREATE TABLE categories (
+-- 3. TABEL CATEGORIES
+CREATE TABLE IF NOT EXISTS categories (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   name TEXT NOT NULL,
   type TEXT DEFAULT 'FASHION', -- Contoh: FASHION, ELECTRONIC, etc.
@@ -19,8 +19,8 @@ CREATE TABLE categories (
   "userId" UUID REFERENCES auth.users(id) ON DELETE CASCADE DEFAULT auth.uid()
 );
 
--- 4. BUAT TABEL ORDERS
-CREATE TABLE orders (
+-- 4. TABEL ORDERS
+CREATE TABLE IF NOT EXISTS orders (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   name TEXT NOT NULL,
   phone TEXT,
@@ -69,8 +69,8 @@ BEGIN
   END IF;
 END $$;
 
--- 8. BUAT TABEL PRODUCT_FIELDS (Ketergantungan yang tadi terhapus CASCADE)
-CREATE TABLE product_fields (
+-- 8. TABEL PRODUCT_FIELDS
+CREATE TABLE IF NOT EXISTS product_fields (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   "productId" UUID REFERENCES categories(id) ON DELETE CASCADE,
   label TEXT NOT NULL,
@@ -101,5 +101,36 @@ BEGIN
     WHERE pubname = 'supabase_realtime' AND tablename = 'product_fields'
   ) THEN
     ALTER PUBLICATION supabase_realtime ADD TABLE product_fields;
+  END IF;
+END $$;
+
+-- 9. TABEL STORE_SETTINGS (Baru untuk fitur Toko Saya)
+CREATE TABLE IF NOT EXISTS store_settings (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  name TEXT DEFAULT '',
+  address TEXT DEFAULT '',
+  phone TEXT DEFAULT '',
+  "logoUrl" TEXT DEFAULT '',
+  "signatureUrl" TEXT DEFAULT '',
+  "footerNote" TEXT DEFAULT '',
+  "userId" UUID REFERENCES auth.users(id) ON DELETE CASCADE DEFAULT auth.uid(),
+  "createdAt" TIMESTAMPTZ DEFAULT now(),
+  UNIQUE("userId") -- Memastikan satu user hanya punya satu pengaturan toko
+);
+
+ALTER TABLE store_settings ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can manage their own store settings" ON store_settings;
+CREATE POLICY "Users can manage their own store settings" ON store_settings
+FOR ALL USING (auth.uid() = "userId");
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND tablename = 'store_settings'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE store_settings;
   END IF;
 END $$;

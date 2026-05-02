@@ -1,47 +1,106 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Sidebar } from "@/components/dashboard/Sidebar";
-import { TopNav } from "@/components/dashboard/TopNav";
+import { Sidebar } from "./Sidebar";
+import { TopNav } from "./TopNav";
 import { useOrderStore } from "@/store/useOrderStore";
 import { cn } from "@/lib/utils";
 import { LayoutDashboard, ShoppingCart, FileText, User } from "lucide-react";
-import { DashboardOverview } from "@/views/DashboardOverview";
+
 import { OrdersPage } from "@/views/OrdersPage";
-import { ReportsPage } from "@/views/ReportsPage";
+import { ConfirmDialog } from "@/components/dashboard/ConfirmDialog";
 import { ProfilePage } from "@/views/ProfilePage";
 import { OrderFormView } from "@/views/OrderFormView";
 import { CategoryManagerView } from "@/views/CategoryManagerView";
 import { FieldManagerView } from "@/views/FieldManagerView";
+import { StoreSettingsView } from "@/views/StoreSettingsView";
+import { PasswordSettingsView } from "@/views/PasswordSettingsView";
+import { PreferencesView } from "@/views/PreferencesView";
+import { DataStorageView } from "@/views/DataStorageView";
+import { HelpView } from "@/views/HelpView";
 
-export type PageId = "dashboard" | "orders" | "add-order" | "edit-order" | "reports" | "profile" | "categories" | "fields";
+export type PageId = "orders" | "add-order" | "edit-order" | "profile" | "categories" | "fields" | "store-settings" | "password-settings" | "preferences" | "data-storage" | "help";
 
 export function DashboardShell() {
-  const [activePage, setActivePage] = useState<PageId>("dashboard");
-  const { initData, destroyData, selectedOrder, close } = useOrderStore();
+  const [activePage, setActivePage] = useState<PageId>("orders");
+  const { 
+    initData, 
+    destroyData, 
+    selectedOrder, 
+    close, 
+    setIsViewingCategories, 
+    setCategoryId,
+  } = useOrderStore();
+  
   const isOverlayPage =
-    activePage === "add-order" ||
-    activePage === "edit-order" ||
     activePage === "categories" ||
-    activePage === "fields";
+    activePage === "fields" ||
+    activePage === "store-settings" ||
+    activePage === "password-settings" ||
+    activePage === "preferences" ||
+    activePage === "data-storage" ||
+    activePage === "help";
 
   useEffect(() => {
     initData();
-    return () => destroyData();
+    // Initialize history state
+    window.history.replaceState({ page: "orders", isViewingCategories: true }, "");
+
+    const handlePopState = (event: PopStateEvent) => {
+      if (event.state && event.state.page) {
+        const { page, isViewingCategories: historyIsViewing, categoryId } = event.state;
+        setActivePage(page as PageId);
+        
+        if (page === "orders") {
+          if (historyIsViewing !== undefined) {
+            setIsViewingCategories(historyIsViewing);
+          }
+          if (categoryId !== undefined) {
+            setCategoryId(categoryId);
+          }
+        }
+        
+        if (page !== "edit-order" && page !== "add-order") {
+          close();
+        }
+      } else {
+        setActivePage("orders");
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      destroyData();
+      window.removeEventListener("popstate", handlePopState);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleNavigate = (page: PageId) => {
-    setActivePage(page);
+    if (page !== activePage) {
+      if (page === "orders") {
+        window.history.pushState({ page, isViewingCategories: true }, "");
+        setIsViewingCategories(true);
+      } else {
+        window.history.pushState({ page }, "");
+      }
+      setActivePage(page);
+    }
   };
 
   const handleBack = () => {
-    setActivePage("orders");
-    close();
+    if (window.history.state?.page === activePage) {
+      window.history.back();
+    } else {
+      setActivePage("orders");
+      close();
+    }
   };
 
   return (
     <div className="flex h-dvh bg-background font-inter overflow-hidden" suppressHydrationWarning>
+      <ConfirmDialog />
       {/* Sidebar — sticky, never re-mounts */}
       <div className="sticky top-0 h-dvh flex-shrink-0 z-20" suppressHydrationWarning>
         <Sidebar
@@ -54,8 +113,8 @@ export function DashboardShell() {
       {/* Main content area */}
       <div className="flex-1 flex flex-col min-w-0 h-dvh relative overflow-hidden" suppressHydrationWarning>
         <div className={cn(
-          "sticky top-0 z-10 bg-background/80 backdrop-blur-md transition-all duration-300",
-          isOverlayPage ? "-translate-y-full opacity-0" : "translate-y-0 opacity-100"
+          "sticky top-0 z-10 bg-background/80 backdrop-blur-md",
+          isOverlayPage ? "hidden" : "block"
         )} suppressHydrationWarning>
           <TopNav activePage={activePage} onNavigate={handleNavigate} />
         </div>
@@ -67,49 +126,66 @@ export function DashboardShell() {
           )}
           suppressHydrationWarning
         >
-          <div className={cn("h-full flex flex-col", activePage === "dashboard" ? "block" : "hidden")} suppressHydrationWarning>
-            <DashboardOverview />
-          </div>
           <div className={cn("h-full flex flex-col", activePage === "orders" ? "block" : "hidden")} suppressHydrationWarning>
             <OrdersPage onNavigate={handleNavigate} />
           </div>
-          <div className={cn("h-full flex flex-col", activePage === "reports" ? "block" : "hidden")} suppressHydrationWarning>
-            <ReportsPage />
-          </div>
           <div className={cn("h-full flex flex-col", activePage === "profile" ? "block" : "hidden")} suppressHydrationWarning>
-            <ProfilePage />
+            <ProfilePage onNavigate={handleNavigate} />
           </div>
           
           {/* Full Page Forms/Managers */}
           {activePage === "add-order" && (
-            <div className="fixed inset-0 z-50 bg-background animate-in slide-in-from-right duration-500">
+            <div className="fixed inset-0 z-50 bg-background">
               <OrderFormView onBack={handleBack} />
             </div>
           )}
           {activePage === "edit-order" && (
-            <div className="fixed inset-0 z-50 bg-background animate-in slide-in-from-right duration-500">
+            <div className="fixed inset-0 z-50 bg-background">
               <OrderFormView order={selectedOrder} onBack={handleBack} />
             </div>
           )}
           {activePage === "categories" && (
-            <div className="fixed inset-0 z-50 bg-background animate-in slide-in-from-right duration-500">
+            <div className="fixed inset-0 z-50 bg-background">
               <CategoryManagerView onBack={handleBack} />
             </div>
           )}
           {activePage === "fields" && (
-            <div className="fixed inset-0 z-50 bg-background animate-in slide-in-from-right duration-500">
+            <div className="fixed inset-0 z-50 bg-background">
               <FieldManagerView onBack={handleBack} />
+            </div>
+          )}
+          {activePage === "store-settings" && (
+            <div className="fixed inset-0 z-50 bg-background">
+              <StoreSettingsView onBack={handleBack} />
+            </div>
+          )}
+          {activePage === "password-settings" && (
+            <div className="fixed inset-0 z-50 bg-background">
+              <PasswordSettingsView onBack={handleBack} />
+            </div>
+          )}
+          {activePage === "preferences" && (
+            <div className="fixed inset-0 z-50 bg-background">
+              <PreferencesView onBack={handleBack} />
+            </div>
+          )}
+          {activePage === "data-storage" && (
+            <div className="fixed inset-0 z-50 bg-background">
+              <DataStorageView onBack={handleBack} />
+            </div>
+          )}
+          {activePage === "help" && (
+            <div className="fixed inset-0 z-50 bg-background">
+              <HelpView onBack={handleBack} />
             </div>
           )}
         </main>
 
         {!isOverlayPage && (
           <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur-sm px-2.5 py-2 pb-[calc(env(safe-area-inset-bottom)+8px)]">
-            <div className="grid grid-cols-4 gap-1">
+            <div className="grid grid-cols-2 gap-1">
               {[
-                { id: "dashboard" as const, label: "Home", icon: LayoutDashboard },
                 { id: "orders" as const, label: "Orders", icon: ShoppingCart },
-                { id: "reports" as const, label: "Reports", icon: FileText },
                 { id: "profile" as const, label: "Profile", icon: User },
               ].map((item) => {
                 const isActive = activePage === item.id;
@@ -119,8 +195,10 @@ export function DashboardShell() {
                     type="button"
                     onClick={() => handleNavigate(item.id)}
                     className={cn(
-                      "h-12 rounded-lg flex flex-col items-center justify-center gap-1 text-[10px] font-semibold transition-colors",
-                      isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground",
+                      "h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] font-bold transition-all duration-200",
+                      isActive 
+                        ? "bg-primary/10 text-primary scale-105" 
+                        : "text-muted-foreground hover:text-foreground",
                     )}
                   >
                     <item.icon size={16} />

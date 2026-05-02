@@ -4,21 +4,19 @@ import { useMemo, useState } from "react";
 import { useOrderStore } from "@/store/useOrderStore";
 import {
   Loader2,
-  FileText,
   DollarSign,
   Users,
   ShoppingBag,
-  Clock3,
   TrendingUp,
   Wallet,
+  PieChart,
+  Target,
 } from "lucide-react";
 import { Analytics } from "@/components/dashboard/Analytics";
 import { cn } from "@/lib/utils";
 
 type DateRange = "7d" | "30d" | "all";
 type PaymentFilter = "all" | "paid" | "unpaid";
-
-const PRICE_PER_UNIT = 150000;
 
 function resolveQuantity(data: Record<string, unknown> = {}): number {
   const known = ["Quantity", "quantity", "qty", "Qty", "jumlah", "Jumlah"];
@@ -34,7 +32,7 @@ function resolveCreatedAt(input?: string): Date | null {
 }
 
 export function ReportsPage() {
-  const { orders, isOrdersLoading } = useOrderStore();
+  const { orders, isOrdersLoading, categories } = useOrderStore();
   const [dateRange, setDateRange] = useState<DateRange>("30d");
   const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>("all");
 
@@ -49,7 +47,7 @@ export function ReportsPage() {
     })();
 
     return orders.filter((order) => {
-      const paid = (order.status ?? "").toLowerCase() === "lunas";
+      const paid = (order.status ?? "").toLowerCase() === "lunas" || order.data?.["STATUS"] === "LUNAS";
       const paymentMatch =
         paymentFilter === "all" ||
         (paymentFilter === "paid" && paid) ||
@@ -65,11 +63,31 @@ export function ReportsPage() {
   }, [orders, dateRange, paymentFilter, now]);
 
   const metrics = useMemo(() => {
+    let totalRevenue = 0;
+    let totalUnits = 0;
+    const categoryStats = new Map<string, { count: number; revenue: number; name: string }>();
+
+    filteredOrders.forEach((order) => {
+      const cat = categories.find(c => c.id === order.categoryId);
+      const qty = resolveQuantity(order.data);
+      const price = cat?.pricePerPc || 0;
+      const revenue = qty * price;
+
+      totalUnits += qty;
+      totalRevenue += revenue;
+
+      const catId = order.categoryId || "uncategorized";
+      const current = categoryStats.get(catId) || { count: 0, revenue: 0, name: cat?.name || "Uncategorized" };
+      categoryStats.set(catId, {
+        count: current.count + 1,
+        revenue: current.revenue + revenue,
+        name: current.name
+      });
+    });
+
     const totalOrders = filteredOrders.length;
-    const totalUnits = filteredOrders.reduce((sum, order) => sum + resolveQuantity(order.data), 0);
-    const totalRevenue = totalUnits * PRICE_PER_UNIT;
     const uniqueCustomers = new Set(filteredOrders.map((order) => order.phone).filter(Boolean)).size;
-    const paidOrders = filteredOrders.filter((order) => (order.status ?? "").toLowerCase() === "lunas").length;
+    const paidOrders = filteredOrders.filter((order) => (order.status ?? "").toLowerCase() === "lunas" || order.data?.["STATUS"] === "LUNAS").length;
     const paymentRate = totalOrders ? Math.round((paidOrders / totalOrders) * 100) : 0;
 
     const orderByDay = new Map<string, number>();
@@ -88,15 +106,8 @@ export function ReportsPage() {
     const maxTrend = trend.reduce((max, point) => Math.max(max, point.count), 0);
     const averageTicket = totalOrders ? Math.round(totalRevenue / totalOrders) : 0;
 
-    const topCustomers = Array.from(
-      filteredOrders.reduce<Map<string, number>>((map, order) => {
-        if (!order.phone) return map;
-        map.set(order.phone, (map.get(order.phone) ?? 0) + 1);
-        return map;
-      }, new Map()),
-    )
-      .map(([phone, count]) => ({ phone, count }))
-      .sort((a, b) => b.count - a.count)
+    const topCategories = Array.from(categoryStats.values())
+      .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5);
 
     return {
@@ -109,141 +120,148 @@ export function ReportsPage() {
       trend,
       maxTrend,
       averageTicket,
-      topCustomers,
+      topCategories,
     };
-  }, [filteredOrders]);
+  }, [filteredOrders, categories]);
 
   return (
-    <div className="p-3 sm:p-5 md:p-6 space-y-4 sm:space-y-6 max-w-[1600px] mx-auto">
-      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 rounded-xl sm:rounded-2xl border border-border/70 bg-card p-3.5 sm:p-5 md:p-6 shadow-sm">
-        <div className="flex items-start gap-3">
-          <div className="p-2.5 bg-primary/10 text-primary rounded-lg">
-            <FileText size={18} />
+    <div className="h-full overflow-y-auto custom-scrollbar p-2 sm:p-5 md:p-6 space-y-4 sm:space-y-6 max-w-[1600px] mx-auto pb-10">
+      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 rounded-xl sm:rounded-2xl border border-border/70 bg-card p-3 sm:p-5 md:p-6 shadow-sm">
+        <div className="flex items-center gap-3 w-full lg:w-auto">
+          <div className="p-2 sm:p-2.5 bg-primary/10 text-primary rounded-lg">
+            <PieChart size={18} className="sm:size-5" />
           </div>
           <div>
-            <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-primary">Business Reports</h2>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-              Analisis performa order dengan filter periode dan status pembayaran.
+            <h2 className="text-base sm:text-xl md:text-2xl font-black tracking-tight text-primary uppercase">Business Analytics</h2>
+            <p className="text-[9px] sm:text-xs font-bold text-muted-foreground uppercase tracking-[0.1em] sm:tracking-widest mt-0.5">
+              Data-driven insights
             </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2 w-full lg:w-auto">
-          {(["7d", "30d", "all"] as DateRange[]).map((range) => (
-            <button
-              key={range}
-              type="button"
-              onClick={() => setDateRange(range)}
-              className={cn(
-                "h-8 px-3 sm:px-4 rounded-md sm:rounded-lg border text-[10px] sm:text-xs font-bold uppercase tracking-wider",
-                dateRange === range
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-muted/30 text-muted-foreground border-border",
-              )}
-            >
-              {range === "7d" ? "7 Hari" : range === "30d" ? "30 Hari" : "Semua"}
-            </button>
-          ))}
+        <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+          <div className="flex gap-1.5 p-1 bg-muted/30 rounded-lg sm:rounded-xl">
+            {(["7d", "30d", "all"] as DateRange[]).map((range) => (
+              <button
+                key={range}
+                type="button"
+                onClick={() => setDateRange(range)}
+                className={cn(
+                  "flex-1 sm:flex-none h-7 sm:h-8 px-2 sm:px-4 rounded-md sm:rounded-lg text-[9px] sm:text-xs font-bold uppercase tracking-wider transition-all",
+                  dateRange === range
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-muted/50",
+                )}
+              >
+                {range === "7d" ? "7D" : range === "30d" ? "30D" : "All"}
+              </button>
+            ))}
+          </div>
 
-          {(["all", "paid", "unpaid"] as PaymentFilter[]).map((filter) => (
-            <button
-              key={filter}
-              type="button"
-              onClick={() => setPaymentFilter(filter)}
-              className={cn(
-                "h-8 px-3 sm:px-4 rounded-md sm:rounded-lg border text-[10px] sm:text-xs font-bold uppercase tracking-wider",
-                paymentFilter === filter
-                  ? "bg-secondary text-secondary-foreground border-secondary/60"
-                  : "bg-muted/30 text-muted-foreground border-border",
-              )}
-            >
-              {filter === "all" ? "Semua Payment" : filter === "paid" ? "Lunas" : "Belum Lunas"}
-            </button>
-          ))}
+          <div className="flex gap-1.5 p-1 bg-muted/30 rounded-lg sm:rounded-xl">
+            {(["all", "paid", "unpaid"] as PaymentFilter[]).map((filter) => (
+              <button
+                key={filter}
+                type="button"
+                onClick={() => setPaymentFilter(filter)}
+                className={cn(
+                  "flex-1 sm:flex-none h-7 sm:h-8 px-2 sm:px-4 rounded-md sm:rounded-lg text-[9px] sm:text-xs font-bold uppercase tracking-wider transition-all",
+                  paymentFilter === filter
+                    ? "bg-secondary text-secondary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-muted/50",
+                )}
+              >
+                {filter === "all" ? "All" : filter === "paid" ? "Paid" : "Unpaid"}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 
       {isOrdersLoading ? (
-        <div className="flex flex-col items-center justify-center h-[50vh]">
-          <Loader2 className="animate-spin text-primary" size={40} />
+        <div className="flex flex-col items-center justify-center h-[40vh]">
+          <Loader2 className="text-primary/40 animate-spin" size={32} />
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mt-4">Analyzing data...</p>
         </div>
       ) : (
-        <div className="space-y-6">
-          <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
-            <article className="p-3.5 sm:p-5 rounded-xl sm:rounded-2xl border border-border bg-card shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600">
-                  <DollarSign size={16} />
-                </div>
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Revenue</p>
-                  <h3 className="text-xl sm:text-2xl font-black">Rp {metrics.totalRevenue.toLocaleString("id-ID")}</h3>
-                </div>
+        <div className="space-y-4 sm:space-y-8">
+          {/* Key Metrics */}
+          <section className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 lg:gap-6">
+            <article className="p-3.5 sm:p-6 rounded-xl sm:rounded-2xl border border-border bg-card shadow-sm relative overflow-hidden group">
+              <div className="absolute -right-4 -bottom-4 opacity-[0.03] group-hover:opacity-[0.05]">
+                <DollarSign size={80} />
+              </div>
+              <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Revenue</p>
+              <h3 className="text-sm sm:text-2xl font-black text-primary truncate">Rp {metrics.totalRevenue.toLocaleString("id-ID")}</h3>
+              <div className="mt-2 sm:mt-3 flex items-center gap-1.5 text-[8px] sm:text-[10px] font-bold text-emerald-600 uppercase">
+                <TrendingUp size={10} className="sm:size-12" /> Actual Earnings
               </div>
             </article>
 
-            <article className="p-3.5 sm:p-5 rounded-xl sm:rounded-2xl border border-border bg-card shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-blue-500/10 text-blue-600">
-                  <Users size={16} />
-                </div>
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Pelanggan Unik</p>
-                  <h3 className="text-xl sm:text-2xl font-black">{metrics.uniqueCustomers}</h3>
-                </div>
+            <article className="p-3.5 sm:p-6 rounded-xl sm:rounded-2xl border border-border bg-card shadow-sm relative overflow-hidden group">
+              <div className="absolute -right-4 -bottom-4 opacity-[0.03] group-hover:opacity-[0.05]">
+                <ShoppingBag size={80} />
               </div>
+              <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Units</p>
+              <h3 className="text-sm sm:text-2xl font-black text-foreground">{metrics.totalUnits}</h3>
+              <p className="text-[8px] sm:text-[10px] font-bold text-muted-foreground uppercase mt-2 sm:mt-3">Total orders: {metrics.totalOrders}</p>
             </article>
 
-            <article className="p-3.5 sm:p-5 rounded-xl sm:rounded-2xl border border-border bg-card shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-violet-500/10 text-violet-600">
-                  <ShoppingBag size={16} />
-                </div>
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Jumlah Order</p>
-                  <h3 className="text-xl sm:text-2xl font-black">{metrics.totalOrders}</h3>
-                </div>
+            <article className="p-3.5 sm:p-6 rounded-xl sm:rounded-2xl border border-border bg-card shadow-sm relative overflow-hidden group">
+              <div className="absolute -right-4 -bottom-4 opacity-[0.03] group-hover:opacity-[0.05]">
+                <Users size={80} />
               </div>
+              <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Customers</p>
+              <h3 className="text-sm sm:text-2xl font-black text-foreground">{metrics.uniqueCustomers}</h3>
+              <p className="text-[8px] sm:text-[10px] font-bold text-muted-foreground uppercase mt-2 sm:mt-3">Unique contacts</p>
             </article>
 
-            <article className="p-3.5 sm:p-5 rounded-xl sm:rounded-2xl border border-border bg-card shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-amber-500/10 text-amber-600">
-                  <Wallet size={16} />
-                </div>
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Avg Ticket</p>
-                  <h3 className="text-xl sm:text-2xl font-black">Rp {metrics.averageTicket.toLocaleString("id-ID")}</h3>
-                </div>
+            <article className="p-3.5 sm:p-6 rounded-xl sm:rounded-2xl border border-border bg-card shadow-sm relative overflow-hidden group">
+              <div className="absolute -right-4 -bottom-4 opacity-[0.03] group-hover:opacity-[0.05]">
+                <Wallet size={80} />
               </div>
+              <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Average</p>
+              <h3 className="text-sm sm:text-2xl font-black text-foreground truncate">Rp {metrics.averageTicket.toLocaleString("id-ID")}</h3>
+              <p className="text-[8px] sm:text-[10px] font-bold text-muted-foreground uppercase mt-2 sm:mt-3">Per transaction</p>
             </article>
           </section>
 
-          <section className="grid grid-cols-1 xl:grid-cols-5 gap-4">
-            <div className="xl:col-span-3 p-5 rounded-2xl border border-border bg-card shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="text-sm font-black uppercase tracking-wider text-foreground">Tren Order Harian</h4>
-                <div className="text-xs text-muted-foreground flex items-center gap-1.5">
-                  <TrendingUp size={14} />
-                  10 hari terakhir
+          {/* Charts Row */}
+          <section className="grid grid-cols-1 xl:grid-cols-12 gap-4 lg:gap-6">
+            <div className="xl:col-span-8 p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-border bg-card shadow-sm flex flex-col">
+              <div className="flex items-center justify-between mb-6 sm:mb-8">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="w-1 h-4 sm:w-1.5 sm:h-5 bg-primary rounded-full" />
+                  <h4 className="text-[10px] sm:text-sm font-black uppercase tracking-widest text-foreground">Order Volume Trend</h4>
+                </div>
+                <div className="text-[8px] sm:text-[10px] font-bold text-muted-foreground flex items-center gap-1 sm:gap-1.5 uppercase">
+                  <TrendingUp size={12} className="text-emerald-500" />
+                  Activity history
                 </div>
               </div>
 
               {metrics.trend.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-10 text-center">Belum ada data tren pada filter ini.</p>
+                <div className="flex-1 flex flex-col items-center justify-center opacity-20 py-10 sm:py-12">
+                   <Target size={24} className="mb-2 sm:size-32" />
+                   <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest">Insufficient data</p>
+                </div>
               ) : (
-                <div className="grid grid-cols-10 items-end gap-2 h-44">
+                <div className="flex-1 min-h-[160px] sm:min-h-[200px] flex items-end gap-1 sm:gap-3 pb-1 overflow-hidden">
                   {metrics.trend.map((point) => {
-                    const height = metrics.maxTrend ? Math.max(10, (point.count / metrics.maxTrend) * 100) : 0;
+                    const height = metrics.maxTrend ? Math.max(12, (point.count / metrics.maxTrend) * 100) : 0;
                     return (
-                      <div key={point.day} className="flex flex-col items-center justify-end gap-2 h-full">
-                        <div
-                          className="w-full rounded-md bg-primary/80 hover:bg-primary transition-colors"
-                          style={{ height: `${height}%` }}
-                          title={`${point.day}: ${point.count} order`}
-                        />
-                        <span className="text-[10px] text-muted-foreground font-medium">
-                          {point.day.slice(5)}
+                      <div key={point.day} className="flex-1 flex flex-col items-center justify-end gap-2 sm:gap-3 h-full">
+                        <div className="w-full relative group">
+                          <div
+                            className="w-full rounded-t-sm sm:rounded-t-lg bg-primary/20 group-hover:bg-primary/40 transition-colors"
+                            style={{ height: `${height}%` }}
+                          />
+                          <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-foreground text-background text-[8px] sm:text-[10px] font-black px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                            {point.count}
+                          </div>
+                        </div>
+                        <span className="text-[7px] sm:text-[9px] text-muted-foreground font-black uppercase tracking-tighter">
+                          {point.day.slice(8)}/{point.day.slice(5, 7)}
                         </span>
                       </div>
                     );
@@ -252,64 +270,90 @@ export function ReportsPage() {
               )}
             </div>
 
-            <div className="xl:col-span-2 p-5 rounded-2xl border border-border bg-card shadow-sm">
-              <h4 className="text-sm font-black uppercase tracking-wider text-foreground mb-4">Ringkasan Pembayaran</h4>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground flex items-center gap-2">
-                    <Clock3 size={14} /> Paid Rate
-                  </span>
-                  <span className="font-black">{metrics.paymentRate}%</span>
+            <div className="xl:col-span-4 p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-border bg-card shadow-sm">
+              <div className="flex items-center gap-2 sm:gap-3 mb-5 sm:mb-6">
+                <div className="w-1 h-4 sm:w-1.5 sm:h-5 bg-secondary rounded-full" />
+                <h4 className="text-[10px] sm:text-sm font-black uppercase tracking-widest text-foreground">Category Share</h4>
+              </div>
+              
+              <div className="space-y-4 sm:space-y-5">
+                {metrics.topCategories.length === 0 ? (
+                  <p className="text-[10px] text-muted-foreground opacity-50 py-10 text-center uppercase font-bold tracking-widest">No category data</p>
+                ) : (
+                  metrics.topCategories.map((cat, idx) => {
+                    const percentage = Math.round((cat.revenue / metrics.totalRevenue) * 100);
+                    return (
+                      <div key={cat.name} className="space-y-1 sm:space-y-1.5">
+                        <div className="flex items-center justify-between text-[8px] sm:text-[10px] font-black uppercase tracking-wider">
+                          <span className="text-muted-foreground truncate pr-2">{cat.name}</span>
+                          <span className="text-foreground shrink-0">Rp {cat.revenue.toLocaleString("id-ID")}</span>
+                        </div>
+                        <div className="h-1.5 sm:h-2 rounded-full bg-muted overflow-hidden flex">
+                          <div 
+                            className={cn(
+                              "h-full rounded-full",
+                              idx === 0 ? "bg-primary" : idx === 1 ? "bg-secondary" : "bg-blue-500"
+                            )}
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              <div className="mt-6 sm:mt-8 pt-5 sm:pt-6 border-t border-border/60">
+                <div className="flex items-center justify-between mb-3 sm:mb-4">
+                  <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-muted-foreground">Paid Ratio</span>
+                  <span className="text-[10px] sm:text-xs font-black text-emerald-600">{metrics.paymentRate}%</span>
                 </div>
-                <div className="h-2 rounded-full bg-muted overflow-hidden">
+                <div className="h-2 sm:h-3 rounded-full bg-muted overflow-hidden">
                   <div
-                    className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                    className="h-full bg-emerald-500"
                     style={{ width: `${metrics.paymentRate}%` }}
                   />
-                </div>
-                <div className="grid grid-cols-3 gap-2 pt-2">
-                  <div className="rounded-xl border border-border p-3 text-center">
-                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Paid</p>
-                    <p className="text-lg font-black">{metrics.paidOrders}</p>
-                  </div>
-                  <div className="rounded-xl border border-border p-3 text-center">
-                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Unpaid</p>
-                    <p className="text-lg font-black">{metrics.totalOrders - metrics.paidOrders}</p>
-                  </div>
-                  <div className="rounded-xl border border-border p-3 text-center">
-                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Units</p>
-                    <p className="text-lg font-black">{metrics.totalUnits}</p>
-                  </div>
                 </div>
               </div>
             </div>
           </section>
 
-          <section className="grid grid-cols-1 xl:grid-cols-5 gap-4">
-            <div className="xl:col-span-3">
-              <Analytics orders={filteredOrders} />
-            </div>
-            <div className="xl:col-span-2 p-5 rounded-2xl border border-border bg-card shadow-sm">
-              <h4 className="text-sm font-black uppercase tracking-wider text-foreground mb-4">Top Customers</h4>
-              {metrics.topCustomers.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Belum ada pelanggan pada filter ini.</p>
-              ) : (
-                <div className="space-y-2">
-                  {metrics.topCustomers.map((customer, index) => (
-                    <div
-                      key={customer.phone}
-                      className="flex items-center justify-between rounded-xl border border-border px-3 py-2.5"
-                    >
-                      <span className="text-sm font-semibold text-foreground">
-                        #{index + 1} {customer.phone}
-                      </span>
-                      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                        {customer.count} order
-                      </span>
-                    </div>
-                  ))}
+          {/* Secondary Stats */}
+          <section className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
+            <Analytics orders={filteredOrders} className="h-full" />
+            
+            <div className="p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-border bg-card shadow-sm">
+              <div className="flex items-center justify-between mb-5 sm:mb-6">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="w-1 h-4 sm:w-1.5 sm:h-5 bg-blue-500 rounded-full" />
+                  <h4 className="text-[10px] sm:text-sm font-black uppercase tracking-widest text-foreground">Activity Summary</h4>
                 </div>
-              )}
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+                <div className="p-3 sm:p-4 rounded-xl bg-muted/20 border border-border/50 text-center">
+                  <p className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Paid Orders</p>
+                  <p className="text-lg sm:text-2xl font-black text-primary">{metrics.paidOrders}</p>
+                </div>
+                <div className="p-3 sm:p-4 rounded-xl bg-muted/20 border border-border/50 text-center">
+                  <p className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Pending</p>
+                  <p className="text-lg sm:text-2xl font-black text-secondary">{metrics.totalOrders - metrics.paidOrders}</p>
+                </div>
+              </div>
+
+              <div className="mt-4 sm:mt-5 p-3 sm:p-4 rounded-xl bg-primary/5 border border-primary/10">
+                <div className="flex items-center gap-2.5 sm:gap-3">
+                   <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                     <Target size={16} className="sm:size-20" />
+                   </div>
+                   <div>
+                     <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-primary/60 leading-none mb-1">Insights</p>
+                     <p className="text-[10px] sm:text-xs font-bold text-foreground leading-tight">
+                       {metrics.paymentRate > 70 ? "Healthy cashflow detected." : "High pending payments. Action needed."}
+                     </p>
+                   </div>
+                </div>
+              </div>
             </div>
           </section>
         </div>

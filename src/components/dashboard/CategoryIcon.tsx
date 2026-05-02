@@ -44,11 +44,11 @@ const isImageLike = (value: string) =>
   value.startsWith("data:image/") ||
   value.startsWith("/");
 
-export function CategoryIcon({ name, className }: { name?: string; className?: string }) {
+export function CategoryIcon({ name, className, strokeWidth }: { name?: string; className?: string; strokeWidth?: number }) {
   const iconName = (name || "").trim();
   const [imageFailed, setImageFailed] = useState(false);
 
-  if (!iconName) return <Package className={className} />;
+  if (!iconName) return <Package className={className} strokeWidth={strokeWidth} />;
 
   if (isImageLike(iconName) && !imageFailed) {
     return (
@@ -65,5 +65,5 @@ export function CategoryIcon({ name, className }: { name?: string; className?: s
     (item) => item.name.toLowerCase() === iconName.toLowerCase()
   );
   const IconComponent = found ? found.icon : Package;
-  return <IconComponent className={className} />;
+  return <IconComponent className={className} strokeWidth={strokeWidth} />;
 }

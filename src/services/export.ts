@@ -18,14 +18,16 @@ export const exportToExcel = (orders: Order[]) => {
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Orders");
   
-  XLSX.writeFile(workbook, `Orders_${format(new Date(), "yyyy-MM-dd_HHmm")}.xlsx`);
+  const fileName = `Orders_${format(new Date(), "yyyy-MM-dd_HHmm")}.xlsx`;
+  XLSX.writeFile(workbook, fileName);
 };
 
 export const exportToPDF = (orders: Order[]) => {
-  const doc = new jsPDF();
-  
-  // Extract all unique headers from dynamic data
   const dynamicKeys = Array.from(new Set(orders.flatMap(o => Object.keys(o.data || {}))));
+  const totalCols = 5 + dynamicKeys.length;
+  const orientation = totalCols > 7 ? "l" : "p";
+  const doc = new jsPDF(orientation);
+  
   const tableColumn = ["No", "Nama", "Telepon", "Status", ...dynamicKeys, "Tanggal"];
   const tableRows: any[] = [];
 
@@ -35,17 +37,66 @@ export const exportToPDF = (orders: Order[]) => {
       order.name,
       order.phone,
       order.status,
-      ...dynamicKeys.map(key => order.data?.[key] || "-"),
+      ...dynamicKeys.map(key => {
+        const val = order.data?.[key] || "-";
+        if (typeof val === "string" && val.startsWith("http")) return "VIEW IMAGE";
+        return val;
+      }),
       order.createdAt ? format(new Date(order.createdAt), "dd/MM/yyyy") : "-",
     ];
     tableRows.push(orderData);
   });
 
-  doc.text("OrderFlow - Management Report", 14, 15);
+  // ── BRANDING HEADER ──
+  const pageWidth = doc.internal.pageSize.getWidth();
+  
+  // "ORDER FLOW"
+  doc.setFontSize(24);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(6, 78, 59); // Emerald-900
+  doc.text("ORDER FLOW", 14, 22);
+  
+  // "DIGITAL RECEIPT SYSTEM"
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(100, 116, 139); // Slate-500
+  doc.text("DIGITAL RECEIPT SYSTEM", 14, 28, { charSpace: 1.5 });
+
+  // Metadata right-aligned
+  doc.setFontSize(8);
+  doc.text(`Export: ${format(new Date(), "dd MMMM yyyy, HH:mm")}`, pageWidth - 14, 22, { align: "right" });
+  doc.text(`Total: ${orders.length} Records`, pageWidth - 14, 27, { align: "right" });
+  
+  // Horizontal line
+  doc.setDrawColor(226, 232, 240);
+  doc.line(14, 35, pageWidth - 14, 35);
+
+  // Subtitle / Report Type
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(51, 65, 85); // Slate-700
+  doc.text("ORDER MANAGEMENT REPORT", 14, 42);
+
   autoTable(doc, {
     head: [tableColumn],
     body: tableRows,
-    startY: 20,
+    startY: 48,
+    theme: "grid",
+    headStyles: {
+      fillColor: [6, 78, 59], // Matching Emerald-900
+      textColor: [255, 255, 255],
+      fontSize: 9,
+      fontStyle: "bold",
+      halign: "center"
+    },
+    styles: {
+      fontSize: 8,
+      cellPadding: 3,
+      valign: "middle"
+    },
+    columnStyles: {
+      0: { cellWidth: 10, halign: "center" },
+    }
   });
   
   doc.save(`Orders_${format(new Date(), "yyyy-MM-dd_HHmm")}.pdf`);
@@ -66,7 +117,6 @@ export const exportCategoriesToExcel = (categories: Category[]) => {
   const worksheet = XLSX.utils.json_to_sheet(data);
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Categories");
-
   XLSX.writeFile(workbook, `Categories_${format(new Date(), "yyyy-MM-dd_HHmm")}.xlsx`);
 };
 
@@ -82,16 +132,51 @@ export const exportCategoriesToPDF = (categories: Category[]) => {
       category.type || "-",
       category.status || "-",
       `Rp ${(category.pricePerPc ?? 0).toLocaleString("id-ID")}`,
-      category.icon || "Package",
+      category.icon?.startsWith("http") ? "CUSTOM" : (category.icon || "Package"),
       category.createdAt ? format(new Date(category.createdAt), "dd/MM/yyyy") : "-",
     ]);
   });
 
-  doc.text("OrderFlow - Categories Report", 14, 15);
+  // ── BRANDING HEADER ──
+  const pageWidth = doc.internal.pageSize.getWidth();
+  
+  doc.setFontSize(24);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(6, 78, 59);
+  doc.text("ORDER FLOW", 14, 22);
+  
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(100, 116, 139);
+  doc.text("DIGITAL RECEIPT SYSTEM", 14, 28, { charSpace: 1.5 });
+
+  doc.setFontSize(8);
+  doc.text(`Export: ${format(new Date(), "dd MMMM yyyy, HH:mm")}`, pageWidth - 14, 22, { align: "right" });
+  doc.text(`Total: ${categories.length} Categories`, pageWidth - 14, 27, { align: "right" });
+  
+  doc.setDrawColor(226, 232, 240);
+  doc.line(14, 35, pageWidth - 14, 35);
+
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(51, 65, 85);
+  doc.text("CATEGORIES SUMMARY REPORT", 14, 42);
+
   autoTable(doc, {
     head: [tableColumn],
     body: tableRows,
-    startY: 20,
+    startY: 48,
+    theme: "grid",
+    headStyles: {
+      fillColor: [6, 78, 59],
+      textColor: [255, 255, 255],
+      fontSize: 9,
+      fontStyle: "bold"
+    },
+    styles: {
+      fontSize: 8,
+      cellPadding: 3
+    }
   });
 
   doc.save(`Categories_${format(new Date(), "yyyy-MM-dd_HHmm")}.pdf`);

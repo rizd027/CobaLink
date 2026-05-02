@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import DashboardClientShell from "../DashboardClientShell";
 
 export default function Page() {
-  redirect("/dashboard");
+  return <DashboardClientShell />;
 }

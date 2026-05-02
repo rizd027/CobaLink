@@ -2,49 +2,69 @@
 
 import { useEffect } from "react";
 import Cookies from "js-cookie";
-import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/services/supabase";
 import { useAuthStore } from "@/store/authStore";
+import { AUTH_PROTECTED_PREFIX } from "@/lib/authPaths";
+
+const AUTH_COOKIE = "sb-access-token";
+
+function syncAuthCookie(accessToken: string | null) {
+  if (accessToken) {
+    Cookies.set(AUTH_COOKIE, accessToken, {
+      expires: 7,
+      path: "/",
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
+  } else {
+    Cookies.remove(AUTH_COOKIE, { path: "/" });
+  }
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { setUser, setLoading } = useAuthStore();
-  const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
-    // Initial session check
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session) {
-        Cookies.set("auth-token", session.access_token, { expires: 1 });
-      } else {
-        Cookies.remove("auth-token");
-      }
-      setLoading(false);
-    });
+    // Single source of truth for auth state
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      const path = window.location.pathname;
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      const user = session?.user ?? null;
-      setUser(user);
-      
-      if (session) {
-        Cookies.set("auth-token", session.access_token, { expires: 1 });
-        
-        // Redirect logic based on email verification
-        const isEmailVerified = !!user?.email_confirmed_at;
-        if (!isEmailVerified && pathname === "/dashboard") {
-          router.push("/verify-email");
+      if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+        if (session) {
+          setUser(session.user);
+          syncAuthCookie(session.access_token);
+        } else {
+          setUser(null);
+          // Don't clear cookie here, let the explicit SIGNED_OUT handle it
+          // This prevents clearing a valid cookie set by loginUser before Supabase syncs
         }
-      } else {
-        Cookies.remove("auth-token");
+        setLoading(false);
+        return;
       }
-      
+
+      if (event === "SIGNED_OUT") {
+        setUser(null);
+        syncAuthCookie(null);
+        // Only redirect to login if we are actually on a protected page
+        if (typeof window !== "undefined" && window.location.pathname.startsWith(AUTH_PROTECTED_PREFIX)) {
+          window.location.assign("/login");
+        }
+        setLoading(false);
+        return;
+      }
+
+      if (event === "TOKEN_REFRESHED" && session) {
+        syncAuthCookie(session.access_token);
+      }
+
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, [setUser, setLoading, router, pathname]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return <>{children}</>;
 }

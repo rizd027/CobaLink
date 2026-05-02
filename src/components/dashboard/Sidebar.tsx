@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { logoutUser } from "@/services/auth";
 import { useRouter } from "next/navigation";
-import type { PageId } from "@/components/dashboard/DashboardShell";
+import type { PageId } from "./DashboardShell";
 
 interface SidebarProps {
   className?: string;
@@ -24,7 +24,7 @@ interface SidebarProps {
   onAddClick?: () => void;
 }
 
-export function Sidebar({ className, activePage = "dashboard", onNavigate, onAddClick }: SidebarProps) {
+export function Sidebar({ className, activePage = "orders", onNavigate, onAddClick }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const router = useRouter();
 
@@ -34,16 +34,14 @@ export function Sidebar({ className, activePage = "dashboard", onNavigate, onAdd
   };
 
   const menuItems: { icon: React.ElementType; label: string; page: PageId }[] = [
-    { icon: LayoutDashboard, label: "DASHBOARD", page: "dashboard" },
     { icon: ShoppingCart, label: "LIST ORDERS", page: "orders" },
-    { icon: FileText, label: "REPORTS", page: "reports" },
     { icon: User, label: "PROFILE", page: "profile" },
   ];
 
   return (
     <div 
       className={cn(
-        "relative flex flex-col h-screen border-r bg-white transition-all duration-300",
+        "relative flex flex-col h-screen border-r bg-white",
         isCollapsed ? "w-[80px]" : "w-[260px]",
         className
       )}
