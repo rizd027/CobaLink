@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { AUTH_LANDING_PATH, AUTH_PROTECTED_PREFIX } from "@/lib/authPaths";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const AUTH_COOKIE = "sb-access-token";
   const token = request.cookies.get(AUTH_COOKIE)?.value;
   const { pathname } = request.nextUrl;
